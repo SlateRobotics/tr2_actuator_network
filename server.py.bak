@@ -1,0 +1,228 @@
+#!/usr/bin/env python
+
+import urlparse
+import re
+import time
+import socket
+import SimpleHTTPServer
+import SocketServer
+import threading
+
+indexHtml = ''
+
+numRoutes = 0
+actuatorNames = []
+routeNames = []
+commands = []
+commandsTS = []
+commandsReceived = []
+states = []
+statesTS = []
+
+def setActuatorState (routeName, state):
+	global numRoutes, actuatorNames, routeNames, commands, commandsTS, commandsReceived, states, statesTS
+	for i in range(len(states)):
+		if routeNames[i] == routeName:
+			states[i] = state
+			statesTS[i] = time.time()
+
+def getActuatorState (routeName):
+	global numRoutes, actuatorNames, routeNames, commands, commandsTS, commandsReceived, states, statesTS
+	s = ''
+	for i in range(numRoutes):
+		if routeNames[i] == routeName:
+			s = states[i] + ',' + str(stateTS[i])
+	return s
+
+def addRoute(actuatorName, routeName, cmd):
+	global numRoutes, actuatorNames, routeNames, commands, commandsTS, commandsReceived, states, statesTS
+	actuatorNames.append(actuatorName)
+	routeNames.append(routeName)
+	states.append('')
+	statesTS.append(time.time())
+	commands.append(cmd)
+	commandsReceived.append(False)
+	commandsTS.append(time.time())
+	numRoutes += 1
+
+def getRouteCommand(routeName):
+	global numRoutes, actuatorNames, routeNames, commands, commandsTS, commandsReceived, states, statesTS
+	cmd = ''
+	for i in range(numRoutes):
+		if routeNames[i] == routeName:
+			cmd = commands[i]
+	return cmd
+
+def editRouteCommand(routeName, cmd):
+	global numRoutes, actuatorNames, routeNames, commands, commandsTS, commandsReceived, states, statesTS
+	for i in range(numRoutes):
+		if routeNames[i] == routeName:
+			commands[i] = cmd
+			commandsReceived[i] = False
+			commandsTS[i] = time.time()
+
+def setIndexHtml():
+	global indexHtml, numRoutes, actuatorNames, routeNames, commands, commandsTS, commandsReceived, states, statesTS
+	styleTABLE = "border:1px solid #ccc;border-collapse:collapse;";
+	styleTR = "border:1px solid #ccc;";
+	styleTH = "border:1px solid #ccc;padding:5px;";
+	styleTD = "border:1px solid #ccc;padding:5px;"
+	
+	indexHtml = "";
+	indexHtml += "<script>";
+	indexHtml += "function handleFormSubmit () {";
+	indexHtml += "  var command = document.getElementById('command').value;";
+	indexHtml += "  var actuatorid = document.getElementById('actuatorid').value;";
+	indexHtml += "  var xhr = new XMLHttpRequest();";
+	indexHtml += "  xhr.onreadystatechange = function () {";
+	indexHtml += "      if (xhr.readyState == 4 && xhr.status == 200) {";
+	indexHtml += "          window.location.reload();";
+	indexHtml += "      }";
+	indexHtml += "  };";
+	indexHtml += "  xhr.open(\"POST\", \"/cmd?c=\"+command+\"&a=\"+actuatorid, true);";
+	indexHtml += "  xhr.send();";
+	indexHtml += "}";
+	indexHtml += "</script>";
+	
+	indexHtml += "<h2>TR2 Actuator Network State</h2>";
+	indexHtml += "<p>This is the server in your TR2 that routes serial commands ";
+	indexHtml += "from your robot's onboard computer to its various wireless actuators. ";
+	indexHtml += "Actuators set their state using the \"s\" paramter in the url query by ";
+	indexHtml += "setting it equal to the actuator's angle in radians when visiting the route. Actuators ";
+	indexHtml += "request the latest commands from the main onboard computer by parsing the ";
+	indexHtml += "response body using their respective route below.</p>";
+	
+	indexHtml += "<p>As an example, " + actuatorNames[0] + " requests it's latest command to be executed by visiting ";
+	indexHtml += "<i>" + routeNames[0] + "</i>. It can simultaneously update the actuator's state to the main onboard computer ";
+	indexHtml += "with the url <i>" + routeNames[0] + "?s=3.1415</i>, given a state of 3.1415 radians.</p>";
+	
+	indexHtml += "<table style=\"" + styleTABLE + "\">";
+	indexHtml += "<tr style=\"" + styleTR + "\">";
+	indexHtml += "<th style=\"" + styleTH + "\">Actuator</th>";
+	indexHtml += "<th style=\"" + styleTH + "\">Route</th>";
+	indexHtml += "<th style=\"" + styleTH + "\">Last Command</th>";
+	indexHtml += "<th style=\"" + styleTH + "\">Last Command Updated (sec ago)</th>";
+	indexHtml += "<th style=\"" + styleTH + "\">Last State</th>";
+	indexHtml += "<th style=\"" + styleTH + "\">Last State Updated (sec ago)</th>";
+	indexHtml += "</tr>";
+
+	for i in range(numRoutes):
+		commandTS = str(time.time() - commandsTS[i])
+		stateTS = str(time.time() - statesTS[i])
+		
+		indexHtml += "<tr style=\"" + styleTR + "\">";
+		indexHtml += "<td style=\"" + styleTD + "\">" + actuatorNames[i] + "</td>";
+		indexHtml += "<td style=\"" + styleTD + "\">" + routeNames[i] + "</td>";
+		indexHtml += "<td style=\"" + styleTD + "\">" + commands[i] + "</td>";
+		indexHtml += "<td style=\"" + styleTD + "\">" + commandTS + "</td>";
+		indexHtml += "<td style=\"" + styleTD + "\">" + states[i] + "</td>";
+		indexHtml += "<td style=\"" + styleTD + "\">" + stateTS + "</td>";
+		indexHtml += "</tr>";
+	
+	indexHtml += "</table>";
+	
+	indexHtml += "<div style=\"padding:5px;border-top:1px solid #ccc;margin-top:25px;\">";
+	indexHtml += "<h3>Update command</h3>";
+	indexHtml += "<span>Actuator ID: </span>";
+	indexHtml += "<input id=\"actuatorid\" type=\"text\" name=\"actuatorid\" value=\"\"><br>";
+	indexHtml += "<span>New Command: </span>";
+	indexHtml += "<input id=\"command\" type=\"text\" name=\"command\" value=\"\"><br>";
+	indexHtml += "<input style=\"margin-top:15px\" type=\"button\" value=\"Send Command\" onclick=\"handleFormSubmit();\">";
+	indexHtml += "</div>";
+
+class RequestHandler(SimpleHTTPServer.SimpleHTTPRequestHandler):
+	def do_POST(self):
+		cmd = urlparse.parse_qs(urlparse.urlparse(self.path).query).get('c', None)
+		act = urlparse.parse_qs(urlparse.urlparse(self.path).query).get('a', None)
+
+		if cmd != None and len(cmd) > 0:
+			cmd = cmd[0] + ';'
+		else:
+			cmd = ''
+
+		if act != None and len(act) > 0:
+			act = act[0]
+		else:
+			act = ''
+
+		editRouteCommand("/cmd/" + act, cmd)
+		self.send_response(200)
+		self.send_header('Content-type', 'text/plain')
+		self.end_headers()
+		self.wfile.write("OK")
+
+	def do_GET(self):
+		global indexHtml, numRoutes, actuatorNames, routeNames, commands, commandsTS, commandsReceived, states, statesTS
+		if self.path == '/':
+			self.send_response(200)
+			self.send_header('Content-type','text/html')
+			self.end_headers()
+
+			setIndexHtml()
+
+			self.wfile.write(indexHtml)
+		else:
+			state = urlparse.parse_qs(urlparse.urlparse(self.path).query).get('s', None)
+
+			if state != None and len(state) > 0:
+				state = state[0]
+				for i in range(numRoutes):
+					if routeNames[i] in self.path:
+						setActuatorState(routeNames[i], state)
+
+			for i in range(numRoutes):
+				if routeNames[i] in self.path:
+					self.send_response(200)
+					self.send_header('Content-type','text/plain')
+					self.end_headers()
+					if commandsReceived[i] == True:
+						self.wfile.write("nc;")
+					else:
+						self.wfile.write(getRouteCommand(routeNames[i]))
+						commandsReceived[i] = True
+
+addRoute("Base", "/cmd/b0", "nc;")
+addRoute("Arm Actuator 0", "/cmd/a0", "nc;")
+addRoute("Arm Actuator 1", "/cmd/a1", "nc;")
+addRoute("Arm Actuator 2", "/cmd/a2", "nc;")
+addRoute("Arm Actuator 3", "/cmd/a3", "nc;")
+addRoute("Arm Actuator 4", "/cmd/a4", "nc;")
+addRoute("Gripper Actuator 0", "/cmd/g0", "nc;")
+addRoute("Head Actuator Pan", "/cmd/h0", "nc;")
+addRoute("Head Actuator Tilt", "/cmd/h1", "nc;")
+
+addRoute("Sensor: Battery Voltage", "/cmd/s0", "nc;")
+
+def handle_tx2():
+	while True:
+		try:
+			tx2 = socket.socket()
+			tx2.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+			tx2.connect(('192.168.77.1',12345))
+			while True:
+				res = tx2.recv(1024)
+				if not res: break
+				id = res.split(':')[0]
+				cmd = res.split(':')[1]
+				editRouteCommand("/cmd/"+id,cmd)
+				print 'RES <- ' + res
+			tx2.close()
+		except BaseException as e:
+			print('{!r}; restarting thread'.format(e))
+		else:
+			print('exited normally, bad thread; restarting')
+
+t = threading.Thread(target=handle_tx2, args=())
+t.daemon = True
+t.start()
+
+actuatorNetworkServer = SocketServer.TCPServer(("", 80), RequestHandler)
+
+print("serving at port 80")
+
+try:
+	actuatorNetworkServer.serve_forever()
+except KeyboardInterrupt:
+	pass
+
+actuatorNetworkServer.server_close()
