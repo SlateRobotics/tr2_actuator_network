@@ -58,17 +58,18 @@ def addRoute(actuatorName, routeName, cmd):
 
 def getRouteCommand(routeName):
 	global numRoutes, actuatorNames, routeNames, commands, commandsTS, commandsReceived, states, statesTS
-	cmd = ''
 	for i in range(numRoutes):
 		if routeNames[i] == routeName:
 			cmd = commands[i]
-	return cmd
+			commands[i] = ''
+			return cmd
+	return ''
 
 def editRouteCommand(routeName, cmd):
 	global numRoutes, actuatorNames, routeNames, commands, commandsTS, commandsReceived, states, statesTS
 	for i in range(numRoutes):
 		if routeNames[i] == routeName:
-			commands[i] = cmd
+			commands[i] = commands[i] + cmd
 			commandsReceived[i] = False
 			commandsTS[i] = time.time()
 
@@ -160,7 +161,7 @@ class RequestHandler(BaseHTTPRequestHandler):
 
 
 			act_id = self.path.split('/cfg/')[1].split('?')[0]
-			f = open("/home/pi/Desktop/ActuatorNetwork/cfg/" + act_id,"w")
+			f = open("/home/pi/tr2/ActuatorNetwork/cfg/" + act_id,"w")
 			f.write(c)
 			f.close()
 			self.send_response(200)
@@ -208,7 +209,7 @@ class RequestHandler(BaseHTTPRequestHandler):
 			self.wfile.write(indexHtml.encode())
 		elif self.path.startswith('/cfg'):
 			act_id = self.path.split('/cfg/')[1].split('?')[0]
-			f = open("/home/pi/Desktop/ActuatorNetwork/cfg/" + act_id,"r+")
+			f = open("/home/pi/tr2/ActuatorNetwork/cfg/" + act_id,"r+")
 			cfg = f.read()
 			f.close()
 
@@ -224,7 +225,7 @@ class RequestHandler(BaseHTTPRequestHandler):
 			if cfg != None and len(cfg) > 0:
 				cfg = cfg[0] + ';'
 				act_id = self.path.split('/cmd/')[1].split('?')[0]
-				f = open("/home/pi/Desktop/ActuatorNetwork/cfg/" + act_id,"w")
+				f = open("/home/pi/tr2/ActuatorNetwork/cfg/" + act_id,"w")
 				f.write(cfg)
 				f.close()
 
@@ -242,6 +243,7 @@ class RequestHandler(BaseHTTPRequestHandler):
 					msg = "cmd:nc;"
 					if commandsReceived[i] == False:
 						msg = "cmd:" + getRouteCommand(routeNames[i])
+						print("REQ -> " + msg)
 						commandsReceived[i] = True
 					self.wfile.write(msg.encode())
 
@@ -282,18 +284,24 @@ def handle_tx2():
 					_states = _states + aid + ":" +  state + ";"
 				_states = _states + ";"
 
-				if _states != "":
-					tx2.send(_states.encode())
+				if _states == "":
+					_states = "ns;"
 
-				res = tx2.recv(1024).decode()
-				if res and res != "nc;":
-					id = res.split(':')[0]
-					cmd = res.split(':')[1]
-					editRouteCommand("/cmd/"+id,cmd)
-					print("RES <- " + res)
+				tx2.send(_states.encode())
+
+				res = tx2.recv(4096).decode()
+				#if res != "nc;":
+					#print(" <- " + res)
+				cmds = res.split(';')
+				for c in cmds:
+					if c and len(c.split(':')) > 1:
+						id = c.split(':')[0]
+						cmd = c.split(':')[1] + ';'
+						editRouteCommand("/cmd/"+id,cmd)
 #			tx2.close()
-		except BaseException as e:
-			print('{!r}; restarting thread'.format(e))
+		except Exception as e:
+			print(e)
+			print('restarting thread')
 		else:
 			print('exited normally, bad thread; restarting')
 
@@ -322,7 +330,7 @@ def actuatorNetwork():
 #print_lock = threading.Lock()
 
 def threaded(c):
-	global routeNames, numRoutes
+	global routeNames, numRoutes, _cmd
 	while True:
 		try:
 			data = c.recv(1024).decode()
@@ -335,11 +343,13 @@ def threaded(c):
 
 			# return cfg if needed
 			if data.split(':')[1].split(';')[0] == '?':
-				f = open("/home/pi/Desktop/ActuatorNetwork/cfg/" + aid, 'r')
+				f = open("/home/pi/tr2/ActuatorNetwork/cfg/" + aid, 'r')
 				cfg = f.read()
 				f.close()
 
-				msg = "cfg:" + cfg + "\r\n"
+				cfg = cfg.replace('\r','').replace('\n','')
+
+				msg = "cfg:" + cfg + ";\r\n"
 				#print(" -> " + msg)
 				c.send(msg.encode())
 			else:
@@ -350,20 +360,24 @@ def threaded(c):
 				if len(data.split(':')[1].split(';')) > 1:
 					cfg = data.split(':')[1].split(';')[1]
 					if len(cfg.split(',')) == 4:
-						f = open("/home/pi/Desktop/ActuatorNetwork/cfg/" + aid, 'w')
+						f = open("/home/pi/tr2/ActuatorNetwork/cfg/" + aid, 'w')
 						f.write(cfg + ";")
 						f.close()
 
 				# get and send cmd
 				msg = "cmd:nc;"
 				for i in range(numRoutes):
-					if aid in routeNames[i] and commandsReceived[i] == False:
-						msg = "cmd:" + getRouteCommand("/cmd/" + aid)
-						commandsReceived[i] = True
-				msg = msg + "\r\n"
-				#print(" -> " + msg)
+					if aid in routeNames[i]:
+						cmd = getRouteCommand("/cmd/" + aid)
+						if cmd != "":
+							msg = "cmd:" + cmd
+							commandsReceived[i] = True
+				msg = msg + ";\r\n"
+				if aid == "a4" and msg != "cmd:nc;;\r\n":
+					print(" -> " + msg)
 				c.send(msg.encode())
-		except  BaseException as e:
+		except Exception as e:
+			print(e)
 			print('{!r}; exiting thread'.format(e))
 			break
 			#print_lock.release()
@@ -375,6 +389,7 @@ def tcpServer():
 	while True:
 		try:
 			s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+			s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 			s.bind(("", 1738))
 			s.listen(15)
 
@@ -385,7 +400,8 @@ def tcpServer():
 				print('Connected to :', addr[0], ':', addr[1])
 				start_new_thread(threaded, (c,))
 			s.close()
-		except  BaseException as e:
+		except Exception as e:
+			print(e)
 			print('{!r}; restarting thread'.format(e))
 
 t2 = threading.Thread(target=tcpServer, args=())
