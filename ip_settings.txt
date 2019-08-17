@@ -1,3 +1,0 @@
-IPv4 Address - 192.168.77.21
-Router - 192.168.77.1
-DNS Servers - 192.168.77.1
