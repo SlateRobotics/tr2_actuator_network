@@ -21,4 +21,7 @@ sudo rm /etc/hostapd/hostapd.conf
 sudo cp install/hostapd.conf /etc/hostapd/hostapd.conf
 sudo chmod -R 777 /etc/hostapd/hostapd.conf
 
+echo "Enable SSH -> \"Interfacing Options\" -> \"SSH\""
+sudo raspi-config
+
 echo "Install complete. Please reboot"
