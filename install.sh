@@ -1,3 +1,7 @@
+echo "Updating system"
+sudo apt-get update
+sudo apt-get dist-upgrade -y
+
 echo "Editing autostart"
 sudo cp -n /etc/xdg/lxsession/LXDE-pi/autostart /etc/xdg/lxsession/LXDE-pi/autostart.bak
 sudo rm /etc/xdg/lxsession/LXDE-pi/autostart
