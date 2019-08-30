@@ -161,7 +161,7 @@ class RequestHandler(BaseHTTPRequestHandler):
 
 
 			act_id = self.path.split('/cfg/')[1].split('?')[0]
-			f = open("/home/pi/tr2/ActuatorNetwork/cfg/" + act_id,"w")
+			f = open("/home/pi/tr2/tr2_actuator_network/cfg/" + act_id,"w")
 			f.write(c)
 			f.close()
 			self.send_response(200)
@@ -209,7 +209,7 @@ class RequestHandler(BaseHTTPRequestHandler):
 			self.wfile.write(indexHtml.encode())
 		elif self.path.startswith('/cfg'):
 			act_id = self.path.split('/cfg/')[1].split('?')[0]
-			f = open("/home/pi/tr2/ActuatorNetwork/cfg/" + act_id,"r+")
+			f = open("/home/pi/tr2/tr2_actuator_network/cfg/" + act_id,"r+")
 			cfg = f.read()
 			f.close()
 
@@ -225,7 +225,7 @@ class RequestHandler(BaseHTTPRequestHandler):
 			if cfg != None and len(cfg) > 0:
 				cfg = cfg[0] + ';'
 				act_id = self.path.split('/cmd/')[1].split('?')[0]
-				f = open("/home/pi/tr2/ActuatorNetwork/cfg/" + act_id,"w")
+				f = open("/home/pi/tr2/tr2_actuator_network/cfg/" + act_id,"w")
 				f.write(cfg)
 				f.close()
 
@@ -343,7 +343,7 @@ def threaded(c):
 
 			# return cfg if needed
 			if data.split(':')[1].split(';')[0] == '?':
-				f = open("/home/pi/tr2/ActuatorNetwork/cfg/" + aid, 'r')
+				f = open("/home/pi/tr2/tr2_actuator_network/cfg/" + aid, 'r')
 				cfg = f.read()
 				f.close()
 
@@ -360,7 +360,7 @@ def threaded(c):
 				if len(data.split(':')[1].split(';')) > 1:
 					cfg = data.split(':')[1].split(';')[1]
 					if len(cfg.split(',')) == 4:
-						f = open("/home/pi/tr2/ActuatorNetwork/cfg/" + aid, 'w')
+						f = open("/home/pi/tr2/tr2_actuator_network/cfg/" + aid, 'w')
 						f.write(cfg + ";")
 						f.close()
 

@@ -1,6 +1,6 @@
 @lxpanel --profile LXDE-pi
 @pcmanfm --desktop --profile LXDE-pi
-sudo /bin/bash /home/pi/tr2/ActuatorNetwork/startWifi.sh &
-sudo /usr/local/bin/python3.5 /home/pi/tr2/ActuatorNetwork/server.py &
+sudo /bin/bash /home/pi/tr2/tr2_actuator_network/startWifi.sh &
+sudo /usr/local/bin/python3.5 /home/pi/tr2/tr2_actuator_network/server.py &
 @xscreensaver -no-splash
 point-rpi
