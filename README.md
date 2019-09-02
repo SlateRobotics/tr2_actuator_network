@@ -7,3 +7,5 @@ To install, simply run the install script and reboot.
 ./install.sh
 ```
 
+## Other Documentation
+https://www.raspberrypi.org/documentation/configuration/wireless/access-point.md
