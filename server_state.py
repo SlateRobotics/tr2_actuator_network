@@ -67,7 +67,6 @@ class server_state:
 			if self.routeNames[i] == routeName:
 				self.states[i] = state
 				self.statesTS[i] = time.time()
-				print("set", state)
 		self.write_lock = False
 
 	def getActuatorState (self, routeName):
@@ -78,7 +77,6 @@ class server_state:
 		for i in range(self.numRoutes):
 			if self.routeNames[i] == routeName:
 				s = self.states[i]
-				print("get",s)
 		return s
 
 	def isStateActive(self, routeName):
@@ -88,9 +86,6 @@ class server_state:
 		r = False
 		for i in range(self.numRoutes):
 			if self.routeNames[i] == routeName:
-				if "a0" in routeName:
-					print("active", time.time() - self.statesTS[i])
-
 				if time.time() - self.statesTS[i] < 2.0:
 					r = True
 		return r

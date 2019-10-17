@@ -49,7 +49,6 @@ class ethernet_handler:
 		else:
 			_states = _states + ";"
 
-		print(" -> ", _states)
 		self.ethernet_socket.send(_states.encode())
 
 	def run(self):

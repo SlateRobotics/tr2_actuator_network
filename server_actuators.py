@@ -34,7 +34,6 @@ class tcp_server_thread:
 					c.send(msg.encode())
 				else:
 					state = data.split(':')[1].split(';')[0]
-					print(" <- ", aid, state)
 					self.state.setActuatorState("/cmd/" + aid, state)
 
 					# update cfg if needed
