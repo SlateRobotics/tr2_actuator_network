@@ -28,25 +28,19 @@ class tcp_server_thread:
 
 				# return cfg if needed
 				if data.split(':')[1].split(';')[0] == '?':
-					f = open(self.state.cfg_path + aid, 'r')
-					cfg = f.read()
-					f.close()
-
+					cfg = self.state.readConfig(aid)
 					cfg = cfg.replace('\r','').replace('\n','')
-
 					msg = "cfg:" + cfg + ";\r\n"
 					c.send(msg.encode())
 				else:
 					state = data.split(':')[1].split(';')[0]
+					print(" <- ", aid, state)
 					self.state.setActuatorState("/cmd/" + aid, state)
 
 					# update cfg if needed
 					if len(data.split(':')[1].split(';')) > 1:
 						cfg = data.split(':')[1].split(';')[1]
-						if len(cfg.split(',')) == 4:
-							f = open(self.state.cfg_path + aid, 'w')
-							f.write(cfg + ";")
-							f.close()
+						self.state.updateConfig(aid, cfg + ";")
 
 					# get and send cmd
 					msg = "cmd:nc;"
@@ -88,7 +82,7 @@ class tcp_server:
 					start_new_thread(tcp_server_thread.run, (ts, conn,))
 				s.close()
 			except Exception as e:
-				print("ACTUATOR:",e)
+				print("ACTUATOR:", e)
 				print('ACTUATOR: {!r}; restarting thread'.format(e))
 
 class server_actuators:

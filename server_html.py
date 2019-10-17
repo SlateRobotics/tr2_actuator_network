@@ -30,9 +30,8 @@ class request_handler(BaseHTTPRequestHandler):
 
 
 			act_id = self.path.split('/cfg/')[1].split('?')[0]
-			f = open(self.state.cfg_path + act_id,"w")
-			f.write(c)
-			f.close()
+			self.state.updateConfig(act_id, c)
+
 			self.send_response(200)
 			self.send_header('Content-type', 'text/plain')
 			self.end_headers()
@@ -73,9 +72,7 @@ class request_handler(BaseHTTPRequestHandler):
 			self.wfile.write(self.indexHtml.encode())
 		elif self.path.startswith('/cfg'):
 			act_id = self.path.split('/cfg/')[1].split('?')[0]
-			f = open(self.state.cfg_path + act_id,"r+")
-			cfg = f.read()
-			f.close()
+			cfg = self.state.readConfig(act_id)
 
 			self.send_response(200)
 			self.send_header('Content-type','text/plain')
@@ -89,9 +86,7 @@ class request_handler(BaseHTTPRequestHandler):
 			if cfg != None and len(cfg) > 0:
 				cfg = cfg[0] + ';'
 				act_id = self.path.split('/cmd/')[1].split('?')[0]
-				f = open(self.state.cfg_path + act_id,"w")
-				f.write(cfg)
-				f.close()
+				self.state.updateConfig(act_id, cfg)
 
 			if state != None and len(state) > 0:
 				state = state[0]
@@ -107,7 +102,7 @@ class request_handler(BaseHTTPRequestHandler):
 					msg = "cmd:nc;"
 					if self.state.commandsReceived[i] == False:
 						msg = "cmd:" + self.getRouteCommand(self.state.routeNames[i])
-						print("HTML: REQ -> " + msg)
+						print("HTML    : REQ -> " + msg)
 						self.state.commandsReceived[i] = True
 					self.wfile.write(msg.encode())
 
@@ -196,7 +191,7 @@ class server_html:
 		actuatorNetworkServer = socketserver.TCPServer(("", 80), request_handler)
 
 		try:
-			print("HTML: serving at port 80")
+			print("HTML    : serving at port 80")
 			actuatorNetworkServer.serve_forever()
 		except KeyboardInterrupt:
 			pass

@@ -11,7 +11,6 @@ from server_actuators import server_actuators
 socketserver.TCPServer.allow_reuse_address = True
 
 state = server_state()
-
 server_actuators(state)
 server_ethernet(state)
 server_html(state)
