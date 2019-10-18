@@ -32,7 +32,7 @@ def test_server_actuators_cfg():
 	server_actuators_socket.send(data.encode())
 	data = server_actuators_socket.recv(409).decode()
 
-	if "cfg:" + a0_cfg in data:
+	if data == "cfg:" + a0_cfg + ";\r\n":
 		print("ACTUATOR CFG TEST\tPASSED\t\t", data.encode())
 		return True
 	else:
@@ -77,7 +77,7 @@ def test():
 
 	passed = True
 
-	test_len = 100
+	test_len = 2
 	for i in range(test_len):
 		print(" > Round", i + 1)
 		result_ec = test_server_ethernet_cmd()
