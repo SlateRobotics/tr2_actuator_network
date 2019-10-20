@@ -132,21 +132,11 @@ class request_handler(BaseHTTPRequestHandler):
 		self.indexHtml += "</script>";
 
 		self.indexHtml += "<h2>TR2 Actuator Network State</h2>";
-		self.indexHtml += "<p>This is the server in your TR2 that routes serial commands ";
-		self.indexHtml += "from your robot's onboard computer to its various wireless actuators. ";
-		self.indexHtml += "Actuators set their state using the \"s\" paramter in the url query by ";
-		self.indexHtml += "setting it equal to the actuator's angle in radians when visiting the route. Actuators ";
-		self.indexHtml += "request the latest commands from the main onboard computer by parsing the ";
-		self.indexHtml += "response body using their respective route below.</p>";
-
-		self.indexHtml += "<p>As an example, " + self.state.actuatorNames[0] + " requests it's latest command to be executed by visiting ";
-		self.indexHtml += "<i>" + self.state.routeNames[0] + "</i>. It can simultaneously update the actuator's state to the main onboard computer ";
-		self.indexHtml += "with the url <i>" + self.state.routeNames[0] + "?s=3.1415</i>, given a state of 3.1415 radians.</p>";
-
 		self.indexHtml += "<table style=\"" + styleTABLE + "\">";
 		self.indexHtml += "<tr style=\"" + styleTR + "\">";
 		self.indexHtml += "<th style=\"" + styleTH + "\">Actuator</th>";
 		self.indexHtml += "<th style=\"" + styleTH + "\">Route</th>";
+		self.indexHtml += "<th style=\"" + styleTH + "\">Config</th>";
 		self.indexHtml += "<th style=\"" + styleTH + "\">Last Command</th>";
 		self.indexHtml += "<th style=\"" + styleTH + "\">Last Command Updated (sec ago)</th>";
 		self.indexHtml += "<th style=\"" + styleTH + "\">Last State</th>";
@@ -160,24 +150,14 @@ class request_handler(BaseHTTPRequestHandler):
 			self.indexHtml += "<tr style=\"" + styleTR + "\">";
 			self.indexHtml += "<td style=\"" + styleTD + "\">" + self.state.actuatorNames[i] + "</td>";
 			self.indexHtml += "<td style=\"" + styleTD + "\">" + self.state.routeNames[i] + "</td>";
-			self.indexHtml += "<td style=\"" + styleTD + "\">" + self.state.commands[i] + "</td>";
+			self.indexHtml += "<td style=\"" + styleTD + "\">" + self.state.readConfig(self.state.routeNames[i].replace("/cmd/","")) + "</td>";
+			self.indexHtml += "<td style=\"" + styleTD + "\">" + self.state.commandsPrev[i] + "</td>";
 			self.indexHtml += "<td style=\"" + styleTD + "\">" + commandTS + "</td>";
 			self.indexHtml += "<td style=\"" + styleTD + "\">" + self.state.states[i] + "</td>";
 			self.indexHtml += "<td style=\"" + styleTD + "\">" + stateTS + "</td>";
 			self.indexHtml += "</tr>";
 
 		self.indexHtml += "</table>";
-
-		self.indexHtml += "<div style=\"padding:5px;border-top:1px solid #ccc;margin-top:25px;\">";
-		self.indexHtml += "<h3>Update command</h3>";
-		self.indexHtml += "<span>Type: </span>";
-		self.indexHtml += "<select id=\"update_type\"><option>cmd</option><option>cfg</option></select><br>"
-		self.indexHtml += "<span>Actuator ID: </span>";
-		self.indexHtml += "<input id=\"actuatorid\" type=\"text\" name=\"actuatorid\" value=\"\"><br>";
-		self.indexHtml += "<span>New Command: </span>";
-		self.indexHtml += "<input id=\"command\" type=\"text\" name=\"command\" value=\"\"><br>";
-		self.indexHtml += "<input style=\"margin-top:15px\" type=\"button\" value=\"Send Command\" onclick=\"handleFormSubmit();\">";
-		self.indexHtml += "</div>";
 
 class server_html:
 	state = None

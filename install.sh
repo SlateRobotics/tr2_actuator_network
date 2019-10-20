@@ -27,6 +27,21 @@ sudo rm /etc/dnsmasq.conf
 sudo cp install/dnsmasq.conf /etc/dnsmasq.conf
 sudo chmod -R 777 /etc/dnsmasq.conf
 
+echo "Creating config files for TR2 endpoints"
+mkdir cfg/
+touch cfg/a0
+touch cfg/a1
+touch cfg/a2
+touch cfg/a3
+touch cfg/a4
+touch cfg/a5
+touch cfg/b0
+touch cfg/b1
+touch cfg/g0
+touch cfg/h0
+touch cfg/h1
+touch cfg/s0
+
 echo "Enable SSH -> \"Interfacing Options\" -> \"SSH\""
 sudo raspi-config
 

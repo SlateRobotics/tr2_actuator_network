@@ -8,6 +8,7 @@ class server_state:
 	actuatorNames = []
 	routeNames = []
 	commands = []
+	commandsPrev = []
 	commandsTS = []
 	commandsReceived = []
 	states = []
@@ -18,7 +19,8 @@ class server_state:
 	cfg_path = ""
 
 	def __init__(self):
-		self.addRoute("Base", "/cmd/b0", "nc;")
+		self.addRoute("Base Wheel Left", "/cmd/b0", "nc;")
+		self.addRoute("Base Wheel Right", "/cmd/b1", "nc;")
 		self.addRoute("Arm Actuator 0", "/cmd/a0", "nc;")
 		self.addRoute("Arm Actuator 1", "/cmd/a1", "nc;")
 		self.addRoute("Arm Actuator 2", "/cmd/a2", "nc;")
@@ -37,10 +39,13 @@ class server_state:
 
 		self.write_lock = True
 		if len(cfg.split(',')) == 4:
-			with open(self.cfg_path + act_id, "w") as f:
-				f.write(cfg)
-				f.flush()
-				os.fsync(f.fileno())
+			try:
+				with open(self.cfg_path + act_id, "w+") as f:
+					f.write(cfg)
+					f.flush()
+					os.fsync(f.fileno())
+			except Exception as e:
+				print(e)
 		self.write_lock = False
 
 	def readConfig(self, act_id):
@@ -48,8 +53,11 @@ class server_state:
 			pass
 
 		cfg = ""
-		with open(self.cfg_path + act_id, "r+") as f:
-			cfg = f.read()
+		try:
+			with open(self.cfg_path + act_id, "r+") as f:
+				cfg = f.read()
+		except Exception as e:
+			print(e)
 		return cfg
 
 	def getNumRoutes(self):
@@ -96,9 +104,19 @@ class server_state:
 		self.states.append('')
 		self.statesTS.append(time.time())
 		self.commands.append(cmd)
+		self.commandsPrev.append(cmd)
 		self.commandsReceived.append(False)
 		self.commandsTS.append(time.time())
 		self.numRoutes += 1
+
+	def getRouteCommandPrev(self, routeName):
+		while self.write_lock == True:
+			pass
+
+		for i in range(self.numRoutes):
+			if self.routeNames[i] == routeName:
+				return self.commandsPrev[i]
+		return ''
 
 	def getRouteCommand(self, routeName):
 		while self.write_lock == True:
@@ -107,6 +125,7 @@ class server_state:
 		for i in range(self.numRoutes):
 			if self.routeNames[i] == routeName:
 				cmd = self.commands[i]
+				self.commandsPrev[i] = cmd
 				self.commands[i] = ''
 				return cmd
 		return ''
@@ -119,6 +138,7 @@ class server_state:
 		for i in range(self.numRoutes):
 			if self.routeNames[i] == routeName:
 				self.commands[i] = self.commands[i] + cmd
+				self.commandsPrev[i] = cmd
 				self.commandsReceived[i] = False
 				self.commandsTS[i] = time.time()
 		self.write_lock = False

@@ -50,8 +50,6 @@ class tcp_server_thread:
 								msg = "cmd:" + cmd
 								self.state.commandsReceived[i] = True
 					msg = msg + ";\r\n"
-					if aid == "a4" and msg != "cmd:nc;;\r\n":
-						print("ACTUATOR: -> " + msg)
 					c.send(msg.encode())
 			except Exception as e:
 				print("ACTUATOR:",e)

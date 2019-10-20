@@ -1,105 +1,115 @@
 #!/usr/bin/env python
 
 import time
+from random import shuffle
+from random import randrange
 import socket
 
-a0_state = 2.0
-a0_cmd = "0,1,2,3,;"
-a0_cfg = "0,4810,60,;"
+aids = ["b0","b1","a0","a1","a2","a3","a4","g0","h0","h1"]
 
-server_ethernet_connection = None
-server_ethernet_socket = None
-server_actuators_socket = None
+class test_server_actuators:
+	aid = None
+	state = 2.0
+	cfg = "0,4810,60,;"
+	socket = None
 
-def test_server_actuators_state():
-	global server_actuators_socket, cfg
+	i = 0
 
-	data = "a0:" + "{0:.6f}".format(a0_state) + ";" + a0_cfg
-	server_actuators_socket.send(data.encode())
-	data = server_actuators_socket.recv(4096).decode()
+	def __init__(self, aid):
+		self.aid = aid
+		self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		self.socket.connect(("", 1738))
+		self.getCfg()
 
-	if "cmd" in data and a0_cmd in data:
-		print("ACTUATOR STATE TEST\tPASSED\t\t", data.encode())
-		return True
-	else:
-		print("ACTUATOR STATE TEST\tFAILED\t\t", data.encode())
-		return False
+	def getCfg(self):
+		data = self.aid + ":?;"
+		self.socket.send(data.encode())
+		print(self.aid, "->", data)
+		data = self.socket.recv(409).decode()
+		print(self.aid, "<-", data)
 
-def test_server_actuators_cfg():
-	global server_actuators_socket, cfg
+	def setState(self):
+		self.state = (randrange(999) + 1.0) / 1000.0 * 6.28
 
-	data = "a0:?;"
-	server_actuators_socket.send(data.encode())
-	data = server_actuators_socket.recv(409).decode()
+	def setCfg(self):
+		self.cfg = str(randrange(255)) + ","
+		self.cfg = self.cfg + str(randrange(255)) + ","
+		self.cfg = self.cfg + str(randrange(255)) + ",;"
 
-	if data == "cfg:" + a0_cfg + ";\r\n":
-		print("ACTUATOR CFG TEST\tPASSED\t\t", data.encode())
-		return True
-	else:
-		print("ACTUATOR CFG TEST\tFAILED\t\t", data.encode())
-		return False
+	def step(self):
+		data = self.aid + ":" + "{0:.6f}".format(self.state) + ";" + self.cfg
+		self.socket.send(data.encode())
+		print(self.aid, "->", data)
 
-def test_server_ethernet_cmd():
-	global server_ethernet_socket, server_ethernet_connection
+		data = self.socket.recv(4096).decode()
 
-	data_send = "a0:" + a0_cmd
-	server_ethernet_connection.send(data_send.encode())
+		self.setState()
+		self.setCfg()
 
-	data_recv = server_ethernet_connection.recv(4096).decode()
+		self.i = self.i + 1
+		print(self.aid, "<-", data)
 
-	passed = True
+	def close(self):
+		self.socket.close()
 
-	if ("ns;" in data_recv) or ("a0:" + "{0:.6f}".format(a0_state - 0.1) + ";" in data_recv):
-		print("ETHERNET TEST\t\tPASSED\t\t", data_recv.encode())
-		passed = True
-	else:
-		print("ETHERNET TEST\t\tFAILED\t\t", data_recv.encode())
-		passed = False
+class test_server_ethernet:
+	socket = None
+	conn = None
+	addr = None
 
-	return passed
+	aids = []
+	cmds = ""
+
+	def __init__(self, aids):
+		self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+		self.socket.bind(("", 12345))
+		self.socket.listen(2)
+
+		self.conn, self.addr = self.socket.accept()
+		self.conn.settimeout(3)
+
+		self.aids = aids
+
+	def setCmds(self):
+		self.cmds = ""
+		for aid in self.aids:
+			cmd = str(randrange(255)) + ","
+			cmd = cmd + str(randrange(255)) + ","
+			cmd = cmd + str(randrange(255)) + ","
+			cmd = cmd + str(randrange(255))
+			self.cmds = self.cmds + aid + ":" + cmd + ";"
+
+	def step(self):
+		self.setCmds()
+		data_send = self.cmds
+		self.conn.send(data_send.encode())
+		print("eth ->", data_send)
+		data_recv = self.conn.recv(4096).decode()
+		print("eth <-", data_recv)
+
+	def close(self):
+		self.conn.close()
+		self.socket.close()
 
 def test():
-	global server_actuators_socket, server_ethernet_socket, server_ethernet_connection, a0_state, a0_cmd, a0_cfg
+	global aids
 
-	server_ethernet_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-	server_ethernet_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-	server_ethernet_socket.bind(("", 12345))
-	server_ethernet_socket.listen(2)
+	tse = test_server_ethernet(aids)
+	tsa = []
 
-	server_ethernet_connection, addr = server_ethernet_socket.accept()
-	server_ethernet_connection.settimeout(3)
+	for aid in aids:
+		tsa.append(test_server_actuators(aid))
 
-	server_actuators_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-	server_actuators_socket.connect(("", 1738))
-
-	print("TEST\t\t\tRESULT\t\tDATA")
-	print("----\t\t\t------\t\t----")
-
-	passed = True
-
-	test_len = 2
+	test_len = 100
 	for i in range(test_len):
-		print(" > Round", i + 1)
-		result_ec = test_server_ethernet_cmd()
-		result_as = test_server_actuators_state()
-		result_ac = test_server_actuators_cfg()
-		print("")
+		tse.step()
+		for t in tsa:
+			t.step()
+		shuffle(tsa)
 
-		passed = passed and result_ec and result_as and result_ac
-
-		a0_state = a0_state + 0.1
-		a0_cmd = str(i + 1) + ",1,2,3,;"
-		a0_cfg = str(i + 1) + ",4810,60,;"
-
-	print("----\t\t\t------\t\t----")
-
-	if passed == True:
-		print(" > FINAL RESULT\t\tPASSED")
-	else:
-		print(" > FINAL RESULT\t\tFAILED")
-
-	server_ethernet_connection.close()
-	server_ethernet_socket.close()
-	server_actuators_socket.close()
+	tse.close()
+	for t in tsa:
+		t.close()
 
 test()
