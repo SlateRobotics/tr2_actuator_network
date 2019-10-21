@@ -22,6 +22,7 @@ class ethernet_handler:
 	def __init__(self, s):
 		self.state = s
 
+		# if we're testing this not on a raspberry pi
 		if "/home/pi/" not in self.state.cfg_path:
 			self.tcp_ip = ""
 
