@@ -10,8 +10,8 @@ aids = ["b0","b1","a0","a1","a2","a3","a4","g0","h0","h1"]
 
 class test_server_actuators:
 	aid = None
-	state = 2.0
-	cfg = "0,4810,60,;"
+	state = None
+	cfg = None
 	socket = None
 
 	spin_i = 0
@@ -40,15 +40,14 @@ class test_server_actuators:
 		self.cfg = self.cfg + str(randrange(255)) + ",;"
 
 	def step(self):
+		self.setState()
+		self.setCfg()
+
 		data = self.aid + ":" + "{0:.6f}".format(self.state) + ";" + self.cfg
 		self.socket.send(data.encode())
 		print(self.aid, "->", data)
 
 		data = self.socket.recv(4096).decode()
-
-		self.setState()
-		self.setCfg()
-
 		print(self.aid, "<-", data)
 
 	def spin(self):
